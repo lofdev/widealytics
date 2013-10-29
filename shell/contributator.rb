@@ -138,7 +138,6 @@ def parseAndStore(line)
 
     NEO.create_relationship('employed_by', contributor, employer)
     donation_relationship = NEO.create_relationship('donated_to', contributor, committee)
-
     NEO.set_relationship_properties(donation_relationship, contribution)
 
 	end
@@ -167,13 +166,15 @@ end
 def checkNeoIndexes
 
   ni = NEO.list_node_indexes
-
-  #  Digest Index
   NEO.create_node_index('digest') unless ni.has_key?('digest')
   NEO.create_node_index('contributors') unless ni.has_key?('contributors')
   NEO.create_node_index('committees') unless ni.has_key?('committees')
 
-  NEO.list_node_indexes
+
+  #ri = NEO.list_relationship_indexes
+  #NEO.create_relationship_index('donation') unless ri.has_key?('donation')
+
+  true
 
 end
 

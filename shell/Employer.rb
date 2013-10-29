@@ -12,8 +12,6 @@ class Employer < Model
 		else
 			false
 		end
-	
-	end
-
+  end
 
 end

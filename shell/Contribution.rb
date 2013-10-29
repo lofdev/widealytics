@@ -12,6 +12,11 @@ class Contribution < Model
       }
       thisContribution = Contribution.new
       thisContribution.setFromHash(o)
+
+
+
+
+
       thisContribution
     else
       false
@@ -24,6 +29,10 @@ class Contribution < Model
       'amount' => @@attributes['amount'],
       'date' => @@attributes['date']
     }
+  end
+
+  def set_index (node = false)
+    true
   end
 
 end
