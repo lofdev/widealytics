@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# contribulizer.rb
+# contribulator.rb
 # Dave Loftis 
 # Twitter/ADN: @lofdev 
 # Web: http://www.lofdev.com
@@ -16,12 +16,21 @@ require 'json'
 require 'pry'
 require 'csv'
 require 'digest/md5'
+require 'neography'
 
-
+# Requirements for this software
+require_relative './Model.rb'
+require_relative './Employer.rb'
+require_relative './Contributor.rb'
+require_relative './Committee.rb'
+require_relative './Contribution.rb'
 
 
 input_filename = ARGV[0]
 current_path = ENV['PWD']
+
+#  Instance of Neography for connecting to Neo4J
+NEO = Neography::Rest.new
 
 
 #
@@ -52,9 +61,6 @@ def parseLine(line)
 		l = l.gsub('"',"*$*")
 		l = l.gsub("~",'"')
 		l = l.gsub('*$*',"'")
-		#l.gsub!('"',"*$*").gsub!("~",'"').gsub!('*$*',"'")
-		#l[0] = '"'
-		#l[-1] = '"'
 		l.parse_csv
 	rescue ArgumentError
 		false
@@ -76,16 +82,7 @@ def contributorFromCsv(data)
 		"zip" => data[11].to_s,
 		"type" => data[17].to_s
 	}
-	c['digest_name'] = "#{c['last_name']} #{c['first_name']} #{c['middle_initial']}".strip!
-	c['digest_name'] ||= 'no name recorded'
-	nameDigest = Digest::MD5.hexdigest(c['digest_name'])
-	if CONTRIBUTORS.has_key?(nameDigest) 
-		c['id'] = CONTRIBUTORS[nameDigest]
-	else
-		c['id'] = CONTRIBUTORS.length
-		CONTRIBUTORS[nameDigest] = c['id']
-	end
-	c
+	Contributor.newWithData(c)
 end
 
 def employerFromCsv(data) 
@@ -93,14 +90,7 @@ def employerFromCsv(data)
 		"name" => data[22].to_s,
 		"occupation" => data[23].to_s
 	}
-	nameDigest = Digest::MD5.hexdigest(c['name'])
-	if EMPLOYERS.has_key?(nameDigest) 
-		c['id'] = EMPLOYERS[nameDigest]
-	else
-		c['id'] = EMPLOYERS.length
-		EMPLOYERS[nameDigest] = c['id']
-	end
-	c	
+  Employer.newWithData(c)
 end
 
 def contributionFromCsv(data)
@@ -113,8 +103,8 @@ def contributionFromCsv(data)
 		'electioneering' => data[18].to_s,
 		'receipt_type' => data[16].to_s
 	}
-	CONTRIBUTIONS.push(c)
-	c
+	Contribution.newWithData(c).serialize
+
 end
 
 def committeeFromCsv(data)
@@ -123,14 +113,8 @@ def committeeFromCsv(data)
 		'name' => data[20].to_s,
 		'candidate' => data[21].to_s
 	}
-	nameDigest = Digest::MD5.hexdigest(c['name'])
-	if COMMITTEES.has_key?(nameDigest) 
-		c['id'] = COMMITTEES[nameDigest]
-	else
-		c['id'] = COMMITTEES.length
-		COMMITTEES[nameDigest] = c['id']
-	end
-	c	
+  Committee.newWithData(c)
+
 end
 
 def parseAndStore(line) 
@@ -150,10 +134,15 @@ def parseAndStore(line)
 			puts "FROM:"
 			puts contributor
 			puts employer
-		end
+    end
+
+    NEO.create_relationship('employed_by', contributor, employer)
+    donation_relationship = NEO.create_relationship('donated_to', contributor, committee)
+
+    NEO.set_relationship_properties(donation_relationship, contribution)
+
 	end
-	
-	# Storing data is TBD
+
 end
 
 def parseFile(path) 
@@ -165,7 +154,7 @@ def parseFile(path)
 		x += 1
 		puts "Processing line #{x}/#{len}" unless debugging?
 	end
-	
+
 	# Final report on the progress of the script
 	puts "Contributions: #{CONTRIBUTIONS.length}"
 	puts "Committees: #{COMMITTEES.length}"
@@ -175,10 +164,23 @@ def parseFile(path)
 end
 
 
+def checkNeoIndexes
+
+  ni = NEO.list_node_indexes
+
+  #  Digest Index
+  NEO.create_node_index('digest') unless ni.has_key?('digest')
+  NEO.create_node_index('contributors') unless ni.has_key?('contributors')
+  NEO.create_node_index('committees') unless ni.has_key?('committees')
+
+  NEO.list_node_indexes
+
+end
 
 #
 #  Run it thing
 #
+NEO_INDEXES = checkNeoIndexes
 parseFile("#{current_path}/#{input_filename}")
 
 
