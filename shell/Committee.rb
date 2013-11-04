@@ -13,5 +13,15 @@ class Committee < Model
       false
     end
   end
-	
+
+
+	def set_index(node)
+    if node
+      super(node)
+      NEO.add_node_to_index('committees', 'all', 'committee', node)  #  Clever hack so I can find all committees quickly
+      NEO.add_node_to_index('committees', 'name', get('name'), node)
+      NEO.add_node_to_index('candidates', 'name', get('candidate'), node)
+    end
+  end
+
 end

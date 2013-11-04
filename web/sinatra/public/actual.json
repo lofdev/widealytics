@@ -1,0 +1,21 @@
+{
+    "nodes":[
+        {"id": 3366, "name":"COMMITTEE FOR EVIE HUDAK","group":0},
+        {"name":"JUDY LOWE-GEBHARDT","group":1},
+        {"name":"JUDY LOWE-GEBHARDT","group":1},
+        {"name":"PAUL AAKER","group":1},
+        {"name":"PAUL AAKER","group":1},
+        {"name":"DAVID MUSSETTER","group":1},
+        {"name":"CHARLOTTE FARIS","group":1},
+        {"name":"THOMAS, DAVID","group":1},
+    ],
+    "links":[
+        {"source":1,"target":0,"value":"50"},
+        {"source":2,"target":0,"value":"1"},
+        {"source":3,"target":0,"value":"50"},
+        {"source":4,"target":0,"value":"1"},
+        {"source":5,"target":0,"value":"25"},
+        {"source":6,"target":0,"value":"15"},
+        {"source":7,"target":0,"value":"200"},
+        {"source":8,"target":7,"value":".5"}
+]}

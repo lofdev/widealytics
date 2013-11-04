@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <style type="text/css">
+        .link { stroke: #ccc; }
+        .nodetext { pointer-events: none; font: 10px sans-serif; }
+        body { width:100%; height:100%; margin:none; padding:none; }
+        #graph { width:900px;height:600px; border:3px solid black;border-radius:12px; margin:auto; }
+    </style>
+</head>
+<body>
+<div id="graph"></div>
+</body>
+<script type="text/javascript">
+
+
+    widealytics = {
+        nodes_raw: {},
+        relationships_raw: {},
+        color: function(group) {
+            colors = [ "#FE7679", "#FEB4B6", "#5FCDC9", "#A3E7E4", "#CCF772", "#71E76B"];
+            return colors[group];
+                /*
+                 *  Colors
+                 *  Red: FE7679          -  GOP Candidate*
+                 *  Lt. Red: FEB4B6      -  GOP Committee
+                 *  Blue: 5FCDC9         -  Dem Candidate*
+                 *  Lt. Blue: A3E7E4     -  Dem Committee
+                 *  Lt. Green: CCF772    -  Employer*
+                 *  Green: 71E76B        -  Person*
+                 *
+                 *  Link: BFBFBF
+                 */
+        },
+        color_by_node_id: function(nid) {
+            return widealytics.color(widealytics.nodes_raw[nid].group);
+        },
+        graph_click: function(e) {
+            self = this;
+            target_element = null;
+            console.log('Event', e);
+
+            node = widealytics.nodes_raw[e.id]
+
+            //  Commented as I explore Node-based stuff exclusively
+            /*if (typeof e.source != 'undefined') {       // Link
+                if (parseInt(parseFloat(e.value)) > 0.5) {
+                    console.log('$' + e.value + ': ' + e.source.name + ' -> ' + e.target.name );
+                }
+                else {
+                    console.log( e.target.name + ' employed by ' + e.source.name );
+                }
+            }
+            else {    */                                   // Node
+                console.log(node.name);
+                self.request_nodes(node.id)
+           /* } */
+        },
+        request_nodes: function(node_id) {
+            $.ajax({
+                url: 'http://localhost:4567/node/' + node_id + '/0',
+                success: function(json) {
+                    self.handle_request_return(json, node_id, true);
+                }
+            });
+        },
+        handle_request_return: function(json, parent_node, ignore_parent) {
+            json = JSON.parse(json);
+            //console.log(json, parent_node);
+            $.each(json.nodes,function(k,v) {
+                if ( ignore_parent ) {
+                    //console.log(v.id, parent_node, (v.id == parent_node));
+                    if (v.id != parent_node ) {
+                        widealytics.nodes_raw[v.id] = v;
+                        graph.addNode( v.id );
+                    }
+                }
+                else {
+                    widealytics.nodes_raw[v.id] = v;
+                    graph.addNode( v.id );
+                }
+            });
+            $.each(json.links,function(l,v) {
+                widealytics.relationships_raw[v.id] = v;
+                graph.addLink(v.source, v.target);
+            });
+        },
+        init_with_node: function(node_id, graph) {
+            target_element = graph;
+            $.ajax({
+                url: 'http://localhost:4567/node/' + node_id + '/0',
+                success: function(json) {
+                    widealytics.handle_request_return(json, node_id, false);
+                }
+            });
+        }
+    };
+
+    /*  Move the below codebase into widealytics space once it's solid  */
+
+    function myGraph(el) {
+
+        // Add and remove elements on the graph object
+        this.addNode = function (id) {
+            nodes.push({"id":id});
+            update();
+        }
+
+        this.removeNode = function (id) {
+            var i = 0;
+            var n = findNode(id);
+            while (i < links.length) {
+                if ((links[i]['source'] == n)||(links[i]['target'] == n)) links.splice(i,1);
+                else i++;
+            }
+            nodes.splice(findNodeIndex(id),1);
+            update();
+        }
+
+        this.addLink = function (source, target) {
+            links.push({"source":findNode(source),"target":findNode(target)});
+            update();
+        }
+
+        var findNode = function(id) {
+            for (var i in nodes) {if (nodes[i]["id"] === id) return nodes[i]};
+        }
+
+        var findNodeIndex = function(id) {
+            for (var i in nodes) {if (nodes[i]["id"] === id) return i};
+        }
+
+        // set up the D3 visualisation in the specified element
+        var w = $(el).innerWidth(),
+                h = $(el).innerHeight();
+
+        var vis = this.vis = d3.select(el).append("svg:svg")
+                .attr("width", w)
+                .attr("height", h);
+
+        var force = d3.layout.force()
+                .gravity(.05)
+                .distance(100)
+                .charge(-100)
+                .size([w, h]);
+
+        var nodes = force.nodes(),
+                links = force.links();
+
+        var update = function () {
+
+            var link = vis.selectAll("line.link")
+                    .data(links, function(d) { return d.source.id + "-" + d.target.id; });
+
+            link.enter().insert("line")
+                    .attr("class", "link");
+
+            link.exit().remove();
+
+            var node = vis.selectAll("g.node")
+                    .data(nodes, function(d) { return d.id;});
+
+            var nodeEnter = node.enter().append("g")
+                    .attr("class", "node")
+                    .on('click', function(i) { widealytics.graph_click(i) })
+                    .call(force.drag);
+
+            nodeEnter.append("circle")
+                    .attr("class", "circle")
+                    .attr("x", "-8px")
+                    .attr("y", "-8px")
+                    .attr("r", 10)
+                    .style("fill", function(d) { return widealytics.color_by_node_id(d.id); })
+                    .attr("width", "16px")
+                    .attr("height", "16px")
+
+            nodeEnter.append("text")
+                    .attr("class", "nodetext")
+                    .attr("dx", 12)
+                    .attr("dy", ".35em")
+                    .text(function(d) {return d.id});
+
+            node.exit().remove();
+
+            force.on("tick", function() {
+                link.attr("x1", function(d) { return d.source.x; })
+                        .attr("y1", function(d) { return d.source.y; })
+                        .attr("x2", function(d) { return d.target.x; })
+                        .attr("y2", function(d) { return d.target.y; });
+
+                node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+            });
+
+            // Restart the force layout.
+            force.start();
+        }
+
+        // Make it all go
+        update();
+    }
+
+    graph = new myGraph("#graph");
+
+    // You can do this from the console as much as you like...
+    var something = function() {
+        graph.addNode("Cause");
+        graph.addNode("Effect");
+        graph.addLink("Cause", "Effect");
+        graph.addNode("A");
+        graph.addNode("B");
+        graph.addLink("A", "B");
+    }
+
+</script>
+</html>

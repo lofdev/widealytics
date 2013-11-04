@@ -169,6 +169,8 @@ def checkNeoIndexes
   NEO.create_node_index('digest') unless ni.has_key?('digest')
   NEO.create_node_index('contributors') unless ni.has_key?('contributors')
   NEO.create_node_index('committees') unless ni.has_key?('committees')
+  NEO.create_node_index('candidates') unless ni.has_key?('candidates')
+
 
 
   #ri = NEO.list_relationship_indexes
@@ -178,10 +180,103 @@ def checkNeoIndexes
 
 end
 
+def get_id_from_node_url(node_url = nil)
+  if node_url
+    arr = node_url.split('/')
+    arr[-1]
+  else
+    false
+  end
+end
+
+# traversal
+def traverse_from(root_id = nil, array_position = 0)
+
+  #  Let's find all the committees
+  puts 'COMMITTEES'
+  puts '=========='
+  all_committees = NEO.get_node_index('committees','all','committee')
+  all_committees.each do |c|
+    thing = {
+      'id' => get_id_from_node_url(c['indexed']),
+      'data' => c['data']
+    }
+    puts thing
+  end
+
+  nodes = [] # name, group (1 = committee, 2 person, 3= employer)
+  relationships = []
+  if root_id
+    root_node = NEO.get_node(root_id)
+    puts 'ROOT NODE'
+    puts '========='
+    puts root_node['data']
+    nodes.push({
+      'id' => root_id,
+      'name' => root_node['data']['name'],
+      'group' => 1
+    })
+    donations = NEO.get_node_relationships(root_node) #,'all','donated_to')
+
+    donors = []
+    puts 'DONATIONS'
+    puts '========='
+    donations.each do |d|
+      caseNode = NEO.get_node(d['start'])
+      donors.push(caseNode)
+      nodes.push({
+        'id' => get_id_from_node_url(caseNode['self']),
+        'name' => " #{caseNode['data']['first_name']} #{caseNode['data']['last_name']} ".strip!,
+        'group' => 2
+      })
+      relationships.push({
+        'source' => relationships.length + 1 + array_position,
+        'target' => 0 + array_position,
+        'value' => d['data']['amount']
+      })
+      puts d['data']
+    end
+
+    puts 'DONORS'
+    puts '========='
+    donors.each do |d|
+      puts d['data']
+    end
+
+    puts 'JSON'
+    puts '========='
+    theJson = {
+      'nodes' => nodes,
+      'links' => relationships
+    }
+    puts theJson.to_json
+#    nodes.each do |d|
+#      puts d.to_json
+#    end
+
+#    relationships.each do |d|
+#      puts d.to_json
+#    end
+  end
+
+end
+
+
+
+
 #
 #  Run it thing
 #
 NEO_INDEXES = checkNeoIndexes
-parseFile("#{current_path}/#{input_filename}")
+
+if ARGV[1] == 'console'
+  binding.pry
+else
+  if ARGV[1] == 'traverse'
+    traverse_from(ARGV[2], ARGV[3].to_i)
+  else
+    parseFile("#{current_path}/#{input_filename}")
+  end
+end
 
 
