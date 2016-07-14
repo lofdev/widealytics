@@ -11,8 +11,15 @@
     </style>
 </head>
 <body>
+<div class="header">
+    <select id="candidate_select" onchange="widealytics.candidate_selection_made()">
+        <option value="">Select Candidate/Committee</option>
+    </select>
+</div>
 <div id="graph"></div>
+
 </body>
+
 <script type="text/javascript">
 
 
@@ -90,11 +97,29 @@
         init_with_node: function(node_id, graph) {
             target_element = graph;
             $.ajax({
-                url: 'http://localhost:4567/node/' + node_id + '/0',
+                url: '/node/' + node_id + '/0',
                 success: function(json) {
                     widealytics.handle_request_return(json, node_id, false);
                 }
             });
+        },
+        request_candidates_list: function() {
+            $.ajax({
+                url: '/candidates',
+                success: function(json) {
+                    widealytics.handle_candidates_return(json);
+                }
+            });
+        },
+        handle_candidates_return: function(json) {
+            json = JSON.parse(json);
+            $.each(json, function(k,v) {
+                $("#candidate_select").append('<option value="' + v.id + '">' + v.data.name + '</option>');
+            });
+        },
+        candidate_selection_made: function() {
+            console.log($("#candidate_select").val())
+            widealytics.init_with_node($("#candidate_select").val(),graph);
         }
     };
 
@@ -144,6 +169,7 @@
                 .gravity(.05)
                 .distance(100)
                 .charge(-100)
+                //.style("overflow", "scroll")
                 .size([w, h]);
 
         var nodes = force.nodes(),
@@ -176,11 +202,11 @@
                     .attr("width", "16px")
                     .attr("height", "16px")
 
-            nodeEnter.append("text")
+            /*nodeEnter.append("text")
                     .attr("class", "nodetext")
                     .attr("dx", 12)
                     .attr("dy", ".35em")
-                    .text(function(d) {return d.id});
+                    .text(function(d) {return d.id}); */
 
             node.exit().remove();
 
@@ -212,6 +238,7 @@
         graph.addNode("B");
         graph.addLink("A", "B");
     }
+    widealytics.request_candidates_list();
 
 </script>
 </html>

@@ -116,6 +116,26 @@ get '/node/:node_id/:array_position' do
 end
 
 
+get '/candidates' do
+  if NEO.class.name != 'Neography::Rest'
+    require 'neography'
+    NEO = Neography::Rest.new
+    puts '{ "neo" : "init" }'
+  end
+  committees = []
+  all_committees = NEO.get_node_index('committees','all','committee')
+  all_committees.each do |c|
+    committees.push({
+        'id' => get_id_from_node_url(c['indexed']),
+        'data' => c['data']
+    })
+  end
+
+  committees.to_json
+end
+
+
+
 def get_id_from_node_url(node_url = nil)
   if node_url
     arr = node_url.split('/')
